@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Version Parser</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; }
+    h2 { margin-top: 2em; }
+    #modal {
+      display: none;
+      position: fixed;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 1em;
+      width: 80%;
+      max-width: 500px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      z-index: 999;
+    }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    .disabled {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    #waitMessage {
+      display: none;
+      margin-top: 1em;
+      font-style: italic;
+      color: #555;
+    }
+
+    body {
+      background: #f4f6f8;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-top: 0.5em;
+      color: #2c3e50;
+    }
+
+    form {
+      background: #ffffff;
+      border: 1px solid #ddd;
+      padding: 1.5em;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 2em;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    input[type="file"] {
+      margin-bottom: 1em;
+    }
+
+    button {
+      background-color: #3498db;
+      border: none;
+      padding: 0.6em 1.2em;
+      color: white;
+      font-size: 1em;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2980b9;
+    }
+
+    #waitMessage {
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .upload-card {
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 1.5em;
+      margin-bottom: 2em;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .aab-card {
+      border-color: #3498db;
+    }
+
+    .xcarchive-card {
+      border-color: #27ae60;
+    }
+
+    .upload-card h2::before {
+      content: "📦 ";
+      font-size: 1.2em;
+    }
+
+    .xcarchive-card h2::before {
+      content: "📱 ";
+    }
+  </style>
+</head>
+<body>
+
+<h1>App Bundle Version Checker</h1>
+
+<div class="upload-card aab-card">
+  <h2>Upload Android AAB</h2>
+  <form id="aabForm">
+    <input type="file" name="aab" required />
+    <button type="submit">Upload AAB</button>
+  </form>
+</div>
+
+<div class="upload-card xcarchive-card">
+  <h2>Upload iOS .xcarchive (Zipped)</h2>
+  <form id="xcarchiveForm">
+    <input type="file" name="xcarchive" required />
+    <button type="submit">Upload XCARCHIVE (ZIP)</button>
+  </form>
+</div>
+
+<div id="overlay"></div>
+<div id="waitMessage">Please wait, parsing file...</div>
+<div id="modal">
+  <h3 id="modalTitle">Result</h3>
+  <pre id="resultText"></pre>
+  <button onclick="closeModal()">Close</button>
+</div>
+
+<script>
+function showModal(json, title = "Result") {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('resultText').textContent = JSON.stringify(json, null, 2);
+  document.getElementById('overlay').style.display = 'block';
+  document.getElementById('modal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('modal').style.display = 'none';
+}
+
+function handleUpload(formId, endpoint) {
+  const form = document.getElementById(formId);
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(form);
+    form.querySelector('button').disabled = true;
+    document.getElementById('aabForm').classList.add('disabled');
+    document.getElementById('xcarchiveForm').classList.add('disabled');
+    document.getElementById('waitMessage').style.display = 'block';
+    fetch(endpoint, {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(json => {
+      const title = formId === 'aabForm' ? "Android AAB Result" : "iOS XCARCHIVE Result";
+      showModal(json, title);
+      form.querySelector('button').disabled = false;
+      document.getElementById('aabForm').classList.remove('disabled');
+      document.getElementById('xcarchiveForm').classList.remove('disabled');
+      document.getElementById('waitMessage').style.display = 'none';
+    })
+    .catch(err => {
+      const title = formId === 'aabForm' ? "Android AAB Error" : "iOS XCARCHIVE Error";
+      showModal({ error: 'Upload failed', details: err.toString() }, title);
+      form.querySelector('button').disabled = false;
+      document.getElementById('aabForm').classList.remove('disabled');
+      document.getElementById('xcarchiveForm').classList.remove('disabled');
+      document.getElementById('waitMessage').style.display = 'none';
+    });
+  });
+}
+
+handleUpload('aabForm', '/upload/aab');
+handleUpload('xcarchiveForm', '/upload/xcarchive');
+</script>
+
+</body>
+</html>
